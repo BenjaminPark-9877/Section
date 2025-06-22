@@ -6,9 +6,9 @@
 #endif //_BASICBONE_H_
 
 #include <Windows.h>  // BITMAPINFO, BITMAPINFOHEADER 정의
-#include <algorithm>   // std::copy
+#include <cstring>     // std::memset, std::memcpy
 
-class CBitmapInfo : private CBasicBone
+class CBitmapInfo : public CBasicBone
 {
 private:
     BITMAPINFO m_BitmapInfo;
@@ -23,9 +23,7 @@ public:
     // 복사 생성자
     CBitmapInfo(const CBitmapInfo& rhs)
     {
-        std::copy(reinterpret_cast<const char*>(&rhs.m_BitmapInfo),
-            reinterpret_cast<const char*>(&rhs.m_BitmapInfo) + sizeof(BITMAPINFO),
-            reinterpret_cast<char*>(&m_BitmapInfo));
+        std::memcpy(&m_BitmapInfo, &rhs.m_BitmapInfo, sizeof(BITMAPINFO));
     }
 
     // 대입 연산자
@@ -33,9 +31,7 @@ public:
     {
         if (this != &rhs)
         {
-            std::copy(reinterpret_cast<const char*>(&rhs.m_BitmapInfo),
-                reinterpret_cast<const char*>(&rhs.m_BitmapInfo) + sizeof(BITMAPINFO),
-                reinterpret_cast<char*>(&m_BitmapInfo));
+            std::memcpy(&m_BitmapInfo, &rhs.m_BitmapInfo, sizeof(BITMAPINFO));
         }
         return *this;
     }
@@ -55,12 +51,10 @@ public:
     // BITMAPINFOHEADER 포인터 반환 (비상수형)
     BITMAPINFOHEADER* GetBitmapInfoHeader() { return &m_BitmapInfo.bmiHeader; }
 
-    // BITMAPINFO 설정 (참조)
+    // BITMAPINFO 설정
     bool Set(const BITMAPINFO& bmpInfo)
     {
-        std::copy(reinterpret_cast<const char*>(&bmpInfo),
-            reinterpret_cast<const char*>(&bmpInfo) + sizeof(BITMAPINFO),
-            reinterpret_cast<char*>(&m_BitmapInfo));
+        std::memcpy(&m_BitmapInfo, &bmpInfo, sizeof(BITMAPINFO));
         return true;
     }
 
@@ -68,18 +62,14 @@ public:
     bool Set(const BITMAPINFO* pBmpInfo)
     {
         if (!pBmpInfo) return false;
-        std::copy(reinterpret_cast<const char*>(pBmpInfo),
-            reinterpret_cast<const char*>(pBmpInfo) + sizeof(BITMAPINFO),
-            reinterpret_cast<char*>(&m_BitmapInfo));
+        std::memcpy(&m_BitmapInfo, pBmpInfo, sizeof(BITMAPINFO));
         return true;
     }
 
-    // BITMAPINFOHEADER 설정 (참조)
+    // BITMAPINFOHEADER 설정
     bool Set(const BITMAPINFOHEADER& bmpInfoHeader)
     {
-        std::copy(reinterpret_cast<const char*>(&bmpInfoHeader),
-            reinterpret_cast<const char*>(&bmpInfoHeader) + sizeof(BITMAPINFOHEADER),
-            reinterpret_cast<char*>(&m_BitmapInfo.bmiHeader));
+        std::memcpy(&m_BitmapInfo.bmiHeader, &bmpInfoHeader, sizeof(BITMAPINFOHEADER));
         return true;
     }
 
@@ -87,9 +77,7 @@ public:
     bool Set(const BITMAPINFOHEADER* pBmpInfoHeader)
     {
         if (!pBmpInfoHeader) return false;
-        std::copy(reinterpret_cast<const char*>(pBmpInfoHeader),
-            reinterpret_cast<const char*>(pBmpInfoHeader) + sizeof(BITMAPINFOHEADER),
-            reinterpret_cast<char*>(&m_BitmapInfo.bmiHeader));
+        std::memcpy(&m_BitmapInfo.bmiHeader, pBmpInfoHeader, sizeof(BITMAPINFOHEADER));
         return true;
     }
 

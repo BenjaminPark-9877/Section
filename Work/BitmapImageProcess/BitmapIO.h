@@ -16,9 +16,9 @@
 class CBitmapIO : public IBitmapIO  // IBitmapIO로부터 상속
 {
 public:
-    CBitmapIO() 
+    CBitmapIO()
     {
-        CBasicBone();// CBasicBone 생성자 호출
+        CBasicBone(); // CBasicBone 생성자 호출
         // 추가 초기화 코드        
     }
     ~CBitmapIO() = default; // 기본 소멸자
@@ -29,7 +29,7 @@ public:
 protected:
     CString AddExtendString(const std::string& filepath);
     bool ReadImageData(CFile& file, std::vector<unsigned char>& imageData, size_t dataSize);
-    bool WriteImageData(CFile& file, const CUserBitmap& bmpNode);
+    bool WriteImageData(CFile& file, const CUserBitmap& bmpNode, RGBQUAD* palRGB = nullptr);
     bool OpenFile(const std::string& filepath, CFile& file);
 };
 

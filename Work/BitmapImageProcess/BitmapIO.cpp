@@ -12,49 +12,48 @@ bool CBitmapIO::Open(const std::string& filepath, CUserBitmap& bmpNode, RGBQUAD*
         return false;
 
     CFile hFile;
-    CString cstrPath(filepath.c_str()); // std::string to CString
+    CString cstrPath(filepath.c_str());
     if (!hFile.Open(cstrPath, CFile::modeRead | CFile::typeBinary))
         return false;
 
-    hFile.Read(&DibHf, sizeof(BITMAPFILEHEADER));
-    if (DibHf.bfType != 0x4D42) // 'BM'
-        return false;
+    try {
+        hFile.Read(&DibHf, sizeof(BITMAPFILEHEADER));
+        if (DibHf.bfType != 0x4D42) // 'BM'
+            throw std::runtime_error("Invalid file format");
 
-    hFile.Read(&DibHi, sizeof(BITMAPINFOHEADER));
-    if (DibHi.biBitCount != 8 && DibHi.biBitCount != 24)
-        return false;
+        hFile.Read(&DibHi, sizeof(BITMAPINFOHEADER));
+        if (DibHi.biBitCount != 8 && DibHi.biBitCount != 24)
+            throw std::runtime_error("Unsupported bit count");
 
-    if (DibHi.biBitCount == 8 && palRGB)
-        hFile.Read(palRGB, sizeof(RGBQUAD) * 256);
+        if (DibHi.biBitCount == 8 && palRGB)
+            hFile.Read(palRGB, sizeof(RGBQUAD) * 256);
 
-    int ImgSize = 0;
-    if (DibHi.biBitCount == 8 && palRGB)
-        ImgSize = hFile.GetLength() - sizeof(BITMAPFILEHEADER) - sizeof(BITMAPINFOHEADER) - sizeof(RGBQUAD) * 256;
-    else
-        ImgSize = hFile.GetLength() - sizeof(BITMAPFILEHEADER) - sizeof(BITMAPINFOHEADER);
+        int ImgSize = (DibHi.biBitCount == 8 && palRGB)
+            ? hFile.GetLength() - sizeof(BITMAPFILEHEADER) - sizeof(BITMAPINFOHEADER) - sizeof(RGBQUAD) * 256
+            : hFile.GetLength() - sizeof(BITMAPFILEHEADER) - sizeof(BITMAPINFOHEADER);
 
-    std::vector<unsigned char> pUcBmpImage(ImgSize);
-    hFile.Read(pUcBmpImage.data(), ImgSize);
-    hFile.Close();
+        std::vector<unsigned char> pUcBmpImage(ImgSize);
+        hFile.Read(pUcBmpImage.data(), ImgSize);
 
-    if (DibHi.biBitCount == 8 && palRGB)
-    {
-        size_t rwsize = WIDTHBYTES(DibHi.biBitCount * DibHi.biWidth);
-        for (size_t i = 0; i < static_cast<size_t>(DibHi.biHeight); ++i)
-        {
-            size_t index = i * rwsize;
-            for (size_t j = 0; j < static_cast<size_t>(DibHi.biWidth); ++j)
-            {
-                int palIndex = static_cast<int>(pUcBmpImage[index + j]);
-                pUcBmpImage[index + j] = palRGB[palIndex].rgbBlue;
+        if (DibHi.biBitCount == 8 && palRGB) {
+            size_t rwsize = WIDTHBYTES(DibHi.biBitCount * DibHi.biWidth);
+            for (size_t i = 0; i < static_cast<size_t>(DibHi.biHeight); ++i) {
+                size_t index = i * rwsize;
+                for (size_t j = 0; j < static_cast<size_t>(DibHi.biWidth); ++j) {
+                    int palIndex = static_cast<int>(pUcBmpImage[index + j]);
+                    pUcBmpImage[index + j] = palRGB[palIndex].rgbBlue;
+                }
             }
         }
+
+        bmpNode.SetImage(pUcBmpImage.data(), &DibHi, &DibHf);
+    } catch (const std::runtime_error& e) {
+        std::cerr << "Error opening file: " << e.what() << std::endl;
+        return false;
     }
 
-    bmpNode.SetImage(pUcBmpImage.data(), &DibHi, &DibHf);
     return true;
 }
-
 
 bool CBitmapIO::Save(const std::string& filepath, const CUserBitmap& bmpNode, RGBQUAD* palRGB)
 {
@@ -69,19 +68,13 @@ bool CBitmapIO::Save(const std::string& filepath, const CUserBitmap& bmpNode, RG
         if (!hFile.Open(cstrPath, CFile::modeCreate | CFile::modeWrite | CFile::typeBinary))
             return false;
 
-        hFile.Write(bmpNode.GetBitmapFileHeader(), sizeof(BITMAPFILEHEADER));
-        hFile.Write(bmpNode.GetBitmapInfoHeader(), sizeof(BITMAPINFOHEADER));
-
-        if (bmpNode.GetBitmapInfoHeader()->biBitCount == 8 && palRGB)
-            hFile.Write(palRGB, sizeof(RGBQUAD) * 256);
-
-        hFile.Write(bmpNode.GetImage().data(), bmpNode.GetBitmapInfoHeader()->biSize);
+        WriteImageData(hFile, bmpNode, palRGB);
         hFile.Close();
-
         return true;
     }
-    catch (...)
+    catch (const std::exception& e)
     {
+        std::cerr << "Error saving file: " << e.what() << std::endl;
         return false;
     }
 }
@@ -101,17 +94,14 @@ bool CBitmapIO::OpenFile(const std::string& filepath, CFile& file)
 {
     try
     {
-        // std::string을 CString으로 변환
         CString cstrFilePath(filepath.c_str());
-
-        // 파일 열기
         file.Open(cstrFilePath, CFile::modeRead | CFile::typeBinary);
         return true;
     }
-    catch (CFileException* e)
+    catch (const CFileException& e) // 포인터가 아니라 참조로 잡음
     {
-        std::cerr << "Failed to open file: " << e->m_strFileName.GetString() << std::endl;
-        e->Delete();
+        std::cerr << "Failed to open file: " << e.m_strFileName.GetString() << std::endl;
+        //e->Delete(); //CFileException 객체는 예외가 발생한 후 catch 블록에서 자동으로 관리됩니다.
         return false;
     }
 }
@@ -123,24 +113,30 @@ bool CBitmapIO::ReadImageData(CFile& file, std::vector<unsigned char>& imageData
         file.Read(imageData.data(), dataSize);
         return true;
     }
-    catch (...)
+    catch (const std::exception& e)
     {
-        std::cerr << "Error reading image data." << std::endl;
+        std::cerr << "Error reading image data: " << e.what() << std::endl;
         return false;
     }
 }
 
-bool CBitmapIO::WriteImageData(CFile& file, const CUserBitmap& bmpNode)
+bool CBitmapIO::WriteImageData(CFile& file, const CUserBitmap& bmpNode, RGBQUAD* palRGB)
 {
     try
     {
         file.Write(bmpNode.GetBitmapFileHeader(), sizeof(BITMAPFILEHEADER));
         file.Write(bmpNode.GetBitmapInfoHeader(), sizeof(BITMAPINFOHEADER));
+
+        if (bmpNode.GetBitmapInfoHeader()->biBitCount == 8 && palRGB)
+            file.Write(palRGB, sizeof(RGBQUAD) * 256);
+
+        const auto& imageData = bmpNode.GetImage();
+        file.Write(imageData.data(), imageData.size());
         return true;
     }
-    catch (...)
+    catch (const std::exception& e)
     {
-        std::cerr << "Error writing image data." << std::endl;
+        std::cerr << "Error writing image data: " << e.what() << std::endl;
         return false;
     }
 }
