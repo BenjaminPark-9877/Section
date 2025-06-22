@@ -5,6 +5,7 @@
 
 #include <afxwin.h> // CDC, CClientDC µî
 #include <tchar.h>
+#include <string>
 
 #ifndef _BASICBONE_H_
 #include "basicbone.h"

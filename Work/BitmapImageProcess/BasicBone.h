@@ -50,10 +50,6 @@ private:
 
 //// 멤버 함수 정의 부분
 public:
-
-
-protected:
-
 	///**
 	//*description   : CBasicBone 클래스용 생성자
 	//*@param input  : -
@@ -70,6 +66,10 @@ protected:
 	//*@return		 : -
 	//*/
 	virtual ~CBasicBone() noexcept = default;
+
+protected:
+
+
 
 private: 
     //////////////////////////////////////////////////////////////////

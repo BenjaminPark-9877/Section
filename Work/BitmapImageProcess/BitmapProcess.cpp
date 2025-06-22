@@ -28,8 +28,12 @@ bool CBitmapProcess::SaveImageToFile(LPCTSTR lpszPathName)
     if (!lpszPathName || lpszPathName[0] == _T('\0'))
         return false;
 
+    // LPCTSTR -> std::string 변환
+    CString cStrPathName = lpszPathName;
+    std::string strPathName(CT2A(cStrPathName).m_psz); // 유니코드 -> 멀티바이트
+
     CBitmapIO bitmapIO;
-    return bitmapIO.Save(lpszPathName, m_cbmpNodeIn, m_cuserRGBQuad.Get());
+    return bitmapIO.Save(strPathName, m_cbmpNodeIn, m_cuserRGBQuad.Get());
 }
 
 bool CBitmapProcess::OpenImageFromFile(LPCTSTR lpszPathName)
@@ -37,8 +41,12 @@ bool CBitmapProcess::OpenImageFromFile(LPCTSTR lpszPathName)
     if (!lpszPathName || lpszPathName[0] == _T('\0'))
         return false;
 
+    // LPCTSTR -> std::string 변환
+    CString cStrPathName = lpszPathName;
+    std::string strPathName(CT2A(cStrPathName).m_psz); // 유니코드 -> 멀티바이트
+
     CBitmapIO bitmapIO;
-    return bitmapIO.Open(lpszPathName, m_cbmpNodeIn, m_cuserRGBQuad.Get());
+    return bitmapIO.Open(strPathName, m_cbmpNodeIn, m_cuserRGBQuad.Get());
 }
 
 void CBitmapProcess::RGB2HSI()

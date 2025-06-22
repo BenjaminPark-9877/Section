@@ -1,17 +1,19 @@
-// BitmapIO.cpp
 #include "pch.h"
 #include "BitmapIO.h"
+#include <iostream>
+#include <stdexcept>
 
-bool CBitmapIO::Open(LPCTSTR lpszPathName, CUserBitmap& bmpNode, RGBQUAD* palRGB)
+bool CBitmapIO::Open(const std::string& filepath, CUserBitmap& bmpNode, RGBQUAD* palRGB)
 {
     BITMAPINFOHEADER DibHi = {};
     BITMAPFILEHEADER DibHf = {};
 
-    if (!lpszPathName || _tcslen(lpszPathName) == 0)
+    if (filepath.empty())
         return false;
 
     CFile hFile;
-    if (!hFile.Open(lpszPathName, CFile::modeRead | CFile::typeBinary))
+    CString cstrPath(filepath.c_str()); // std::string to CString
+    if (!hFile.Open(cstrPath, CFile::modeRead | CFile::typeBinary))
         return false;
 
     hFile.Read(&DibHf, sizeof(BITMAPFILEHEADER));
@@ -53,17 +55,18 @@ bool CBitmapIO::Open(LPCTSTR lpszPathName, CUserBitmap& bmpNode, RGBQUAD* palRGB
     return true;
 }
 
-bool CBitmapIO::Save(LPCTSTR lpszPathName, CUserBitmap& bmpNode, RGBQUAD* palRGB)
+
+bool CBitmapIO::Save(const std::string& filepath, const CUserBitmap& bmpNode, RGBQUAD* palRGB)
 {
     try
     {
-        if (!lpszPathName || _tcslen(lpszPathName) == 0)
+        if (filepath.empty())
             return false;
 
-        CString cStrPathName = AddExtendString(lpszPathName);
+        CString cstrPath = AddExtendString(filepath);
         CFile hFile;
 
-        if (!hFile.Open(cStrPathName, CFile::modeCreate | CFile::modeWrite | CFile::typeBinary))
+        if (!hFile.Open(cstrPath, CFile::modeCreate | CFile::modeWrite | CFile::typeBinary))
             return false;
 
         hFile.Write(bmpNode.GetBitmapFileHeader(), sizeof(BITMAPFILEHEADER));
@@ -83,13 +86,61 @@ bool CBitmapIO::Save(LPCTSTR lpszPathName, CUserBitmap& bmpNode, RGBQUAD* palRGB
     }
 }
 
-CString CBitmapIO::AddExtendString(CString lpszPathName)
+CString CBitmapIO::AddExtendString(const std::string& filepath)
 {
-    CString cStrPathName = CString(lpszPathName).Trim();
-    CString cStrExt = cStrPathName.Right(4);
+    CString cstrPath(filepath.c_str());
+    CString cstrExt = cstrPath.Right(4);
 
-    if (cStrExt.CompareNoCase(STR_DEFAULT_EXTEND_NAME))
-        cStrPathName += STR_DEFAULT_EXTEND_NAME;
+    if (cstrExt.CompareNoCase(_T(".bmp")) != 0)
+        cstrPath += _T(".bmp");
 
-    return cStrPathName;
+    return cstrPath;
+}
+
+bool CBitmapIO::OpenFile(const std::string& filepath, CFile& file)
+{
+    try
+    {
+        // std::string을 CString으로 변환
+        CString cstrFilePath(filepath.c_str());
+
+        // 파일 열기
+        file.Open(cstrFilePath, CFile::modeRead | CFile::typeBinary);
+        return true;
+    }
+    catch (CFileException* e)
+    {
+        std::cerr << "Failed to open file: " << e->m_strFileName.GetString() << std::endl;
+        e->Delete();
+        return false;
+    }
+}
+
+bool CBitmapIO::ReadImageData(CFile& file, std::vector<unsigned char>& imageData, size_t dataSize)
+{
+    try
+    {
+        file.Read(imageData.data(), dataSize);
+        return true;
+    }
+    catch (...)
+    {
+        std::cerr << "Error reading image data." << std::endl;
+        return false;
+    }
+}
+
+bool CBitmapIO::WriteImageData(CFile& file, const CUserBitmap& bmpNode)
+{
+    try
+    {
+        file.Write(bmpNode.GetBitmapFileHeader(), sizeof(BITMAPFILEHEADER));
+        file.Write(bmpNode.GetBitmapInfoHeader(), sizeof(BITMAPINFOHEADER));
+        return true;
+    }
+    catch (...)
+    {
+        std::cerr << "Error writing image data." << std::endl;
+        return false;
+    }
 }

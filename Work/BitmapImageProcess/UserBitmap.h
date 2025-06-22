@@ -97,8 +97,8 @@ private:
     // 이미지 데이터 저장 (초기화 상태는 optional로 관리)
     std::optional<std::vector<unsigned char>> m_optVecBmpImage;
 
-    // (추후 멀티스레드 환경 대비) 뮤텍스 잠금 멤버 - 현재 미사용, 필요시 확장 가능
-    // mutable std::mutex m_mutex;
+    // (추후 멀티스레드 환경 대비) 뮤텍스 잠금 멤버
+    mutable std::mutex m_mutex;
 };
 
 #endif //_USERBITMAP_H_

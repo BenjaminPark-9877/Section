@@ -123,6 +123,7 @@ unsigned long CUserBitmap::GetTotalSize() const noexcept
 
 unsigned char& CUserBitmap::operator[](size_t pos)
 {
+    std::lock_guard<std::mutex> lock(m_mutex);  // 동기화
     if (!m_optVecBmpImage)
         throw std::runtime_error("Image data not initialized");
     return m_optVecBmpImage->at(pos);
@@ -130,6 +131,7 @@ unsigned char& CUserBitmap::operator[](size_t pos)
 
 const unsigned char CUserBitmap::operator[](size_t pos) const
 {
+    std::lock_guard<std::mutex> lock(m_mutex);  // 동기화
     if (!m_optVecBmpImage)
         throw std::runtime_error("Image data not initialized");
     return m_optVecBmpImage->at(pos);
@@ -138,6 +140,7 @@ const unsigned char CUserBitmap::operator[](size_t pos) const
 #ifdef _DEBUG
 unsigned char& CUserBitmap::operator()(size_t row, size_t col)
 {
+    std::lock_guard<std::mutex> lock(m_mutex);  // 동기화
     if (!m_optVecBmpImage)
         throw std::runtime_error("Image data not initialized");
     auto width = GetMaximumWidth();
@@ -148,6 +151,7 @@ unsigned char& CUserBitmap::operator()(size_t row, size_t col)
 
 const unsigned char CUserBitmap::operator()(size_t row, size_t col) const
 {
+    std::lock_guard<std::mutex> lock(m_mutex);  // 동기화
     if (!m_optVecBmpImage)
         throw std::runtime_error("Image data not initialized");
     auto width = GetMaximumWidth();
@@ -158,25 +162,28 @@ const unsigned char CUserBitmap::operator()(size_t row, size_t col) const
 #else
 unsigned char& CUserBitmap::operator()(size_t row, size_t col) noexcept
 {
+    std::lock_guard<std::mutex> lock(m_mutex);  // 동기화
     return (*m_optVecBmpImage)[row * GetMaximumWidth() + col];
 }
 
 const unsigned char CUserBitmap::operator()(size_t row, size_t col) const noexcept
 {
+    std::lock_guard<std::mutex> lock(m_mutex);  // 동기화
     return (*m_optVecBmpImage)[row * GetMaximumWidth() + col];
 }
 #endif
 
-std::vector<unsigned char>& CUserBitmap::GetImage() 
+std::vector<unsigned char>& CUserBitmap::GetImage()
 {
+    std::lock_guard<std::mutex> lock(m_mutex);  // 동기화
     if (!m_optVecBmpImage)
         throw std::runtime_error("Image data not initialized");
     return *m_optVecBmpImage;
 }
 
-
 const std::vector<unsigned char>& CUserBitmap::GetImage() const
 {
+    std::lock_guard<std::mutex> lock(m_mutex);  // 동기화
     if (!m_optVecBmpImage)
         throw std::runtime_error("Image data not initialized");
     return *m_optVecBmpImage;
@@ -184,6 +191,7 @@ const std::vector<unsigned char>& CUserBitmap::GetImage() const
 
 const unsigned char* CUserBitmap::Data() const noexcept
 {
+    std::lock_guard<std::mutex> lock(m_mutex);  // 동기화
     if (!m_optVecBmpImage)
         return nullptr;
     return m_optVecBmpImage->data();
