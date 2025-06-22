@@ -16,21 +16,20 @@
 class CBitmapIO : public IBitmapIO  // IBitmapIO로부터 상속
 {
 public:
-    CBitmapIO()
-    {
-        CBasicBone(); // CBasicBone 생성자 호출
-        // 추가 초기화 코드        
-    }
-    ~CBitmapIO() = default; // 기본 소멸자
+    CBitmapIO();
+    ~CBitmapIO() = default;
 
     bool Open(const std::string& filepath, CUserBitmap& bmpNode, RGBQUAD* palRGB = nullptr) override;
     bool Save(const std::string& filepath, const CUserBitmap& bmpNode, RGBQUAD* palRGB = nullptr) override;
 
 protected:
     CString AddExtendString(const std::string& filepath);
-    bool ReadImageData(CFile& file, std::vector<unsigned char>& imageData, size_t dataSize);
-    bool WriteImageData(CFile& file, const CUserBitmap& bmpNode, RGBQUAD* palRGB = nullptr);
     bool OpenFile(const std::string& filepath, CFile& file);
+    bool ReadBitmapHeaders(CFile& file, BITMAPFILEHEADER& DibHf, BITMAPINFOHEADER& DibHi);
+    bool ReadImageData(CFile& file, std::vector<unsigned char>& imageData, size_t dataSize);
+    bool WriteImageData(CFile& file, const CUserBitmap& bmpNode, RGBQUAD* palRGB);
+    void Process8BitImage(std::vector<unsigned char>& pUcBmpImage, const BITMAPINFOHEADER& DibHi, RGBQUAD* palRGB);
+    int CalculateImageSize(const BITMAPINFOHEADER& DibHi, CFile& hFile);
 };
 
 #endif //_BITMAPIO_H_

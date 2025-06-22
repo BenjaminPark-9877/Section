@@ -3,6 +3,11 @@
 #include <iostream>
 #include <stdexcept>
 
+CBitmapIO::CBitmapIO() {
+    // CBasicBone 생성자 호출 및 초기화
+    CBasicBone();
+}
+
 bool CBitmapIO::Open(const std::string& filepath, CUserBitmap& bmpNode, RGBQUAD* palRGB)
 {
     BITMAPINFOHEADER DibHi = {};
@@ -13,42 +18,24 @@ bool CBitmapIO::Open(const std::string& filepath, CUserBitmap& bmpNode, RGBQUAD*
 
     CFile hFile;
     CString cstrPath(filepath.c_str());
-    if (!hFile.Open(cstrPath, CFile::modeRead | CFile::typeBinary))
+    if (!OpenFile(filepath, hFile))
         return false;
 
     try {
-        hFile.Read(&DibHf, sizeof(BITMAPFILEHEADER));
-        if (DibHf.bfType != 0x4D42) // 'BM'
-            throw std::runtime_error("Invalid file format");
+        ReadBitmapHeaders(hFile, DibHf, DibHi);
 
-        hFile.Read(&DibHi, sizeof(BITMAPINFOHEADER));
-        if (DibHi.biBitCount != 8 && DibHi.biBitCount != 24)
-            throw std::runtime_error("Unsupported bit count");
-
-        if (DibHi.biBitCount == 8 && palRGB)
-            hFile.Read(palRGB, sizeof(RGBQUAD) * 256);
-
-        int ImgSize = (DibHi.biBitCount == 8 && palRGB)
-            ? hFile.GetLength() - sizeof(BITMAPFILEHEADER) - sizeof(BITMAPINFOHEADER) - sizeof(RGBQUAD) * 256
-            : hFile.GetLength() - sizeof(BITMAPFILEHEADER) - sizeof(BITMAPINFOHEADER);
-
+        int ImgSize = CalculateImageSize(DibHi, hFile);
         std::vector<unsigned char> pUcBmpImage(ImgSize);
-        hFile.Read(pUcBmpImage.data(), ImgSize);
+        ReadImageData(hFile, pUcBmpImage, ImgSize);
 
         if (DibHi.biBitCount == 8 && palRGB) {
-            size_t rwsize = WIDTHBYTES(DibHi.biBitCount * DibHi.biWidth);
-            for (size_t i = 0; i < static_cast<size_t>(DibHi.biHeight); ++i) {
-                size_t index = i * rwsize;
-                for (size_t j = 0; j < static_cast<size_t>(DibHi.biWidth); ++j) {
-                    int palIndex = static_cast<int>(pUcBmpImage[index + j]);
-                    pUcBmpImage[index + j] = palRGB[palIndex].rgbBlue;
-                }
-            }
+            Process8BitImage(pUcBmpImage, DibHi, palRGB);
         }
 
         bmpNode.SetImage(pUcBmpImage.data(), &DibHi, &DibHf);
-    } catch (const std::runtime_error& e) {
-        std::cerr << "Error opening file: " << e.what() << std::endl;
+    }
+    catch (const std::runtime_error& e) {
+        std::cerr << "Error opening file [" << filepath << "]: " << e.what() << std::endl;
         return false;
     }
 
@@ -74,7 +61,7 @@ bool CBitmapIO::Save(const std::string& filepath, const CUserBitmap& bmpNode, RG
     }
     catch (const std::exception& e)
     {
-        std::cerr << "Error saving file: " << e.what() << std::endl;
+        std::cerr << "Error saving file [" << filepath << "]: " << e.what() << std::endl;
         return false;
     }
 }
@@ -82,10 +69,12 @@ bool CBitmapIO::Save(const std::string& filepath, const CUserBitmap& bmpNode, RG
 CString CBitmapIO::AddExtendString(const std::string& filepath)
 {
     CString cstrPath(filepath.c_str());
-    CString cstrExt = cstrPath.Right(4);
+    CString cstrExt = cstrPath.Right(4);  // 확장자 부분을 추출 (".bmp")
 
-    if (cstrExt.CompareNoCase(_T(".bmp")) != 0)
-        cstrPath += _T(".bmp");
+    // 확장자가 ".bmp"인지 확인
+    if (cstrExt.CompareNoCase(_T(".bmp")) != 0) {
+        cstrPath += _T(".bmp");  // 없으면 .bmp 추가
+    }
 
     return cstrPath;
 }
@@ -98,12 +87,26 @@ bool CBitmapIO::OpenFile(const std::string& filepath, CFile& file)
         file.Open(cstrFilePath, CFile::modeRead | CFile::typeBinary);
         return true;
     }
-    catch (const CFileException& e) // 포인터가 아니라 참조로 잡음
+    catch (const CFileException& e)
     {
-        std::cerr << "Failed to open file: " << e.m_strFileName.GetString() << std::endl;
-        //e->Delete(); //CFileException 객체는 예외가 발생한 후 catch 블록에서 자동으로 관리됩니다.
+        std::cerr << "Failed to open file [" << filepath << "]: "
+            << e.m_strFileName.GetString() << " with error code "
+            << e.m_cause << std::endl;
         return false;
     }
+}
+
+bool CBitmapIO::ReadBitmapHeaders(CFile& file, BITMAPFILEHEADER& DibHf, BITMAPINFOHEADER& DibHi)
+{
+    file.Read(&DibHf, sizeof(BITMAPFILEHEADER));
+    if (DibHf.bfType != 0x4D42)  // 'BM'
+        throw std::runtime_error("Invalid file format");
+
+    file.Read(&DibHi, sizeof(BITMAPINFOHEADER));
+    if (DibHi.biBitCount != 8 && DibHi.biBitCount != 24)
+        throw std::runtime_error("Unsupported bit count");
+
+    return true;
 }
 
 bool CBitmapIO::ReadImageData(CFile& file, std::vector<unsigned char>& imageData, size_t dataSize)
@@ -118,6 +121,25 @@ bool CBitmapIO::ReadImageData(CFile& file, std::vector<unsigned char>& imageData
         std::cerr << "Error reading image data: " << e.what() << std::endl;
         return false;
     }
+}
+
+void CBitmapIO::Process8BitImage(std::vector<unsigned char>& pUcBmpImage, const BITMAPINFOHEADER& DibHi, RGBQUAD* palRGB)
+{
+    size_t rwsize = WIDTHBYTES(DibHi.biBitCount * DibHi.biWidth);
+    for (size_t i = 0; i < static_cast<size_t>(DibHi.biHeight); ++i) {
+        size_t index = i * rwsize;
+        for (size_t j = 0; j < static_cast<size_t>(DibHi.biWidth); ++j) {
+            int palIndex = static_cast<int>(pUcBmpImage[index + j]);
+            pUcBmpImage[index + j] = palRGB[palIndex].rgbBlue;
+        }
+    }
+}
+
+int CBitmapIO::CalculateImageSize(const BITMAPINFOHEADER& DibHi, CFile& hFile)
+{
+    return (DibHi.biBitCount == 8)
+        ? hFile.GetLength() - sizeof(BITMAPFILEHEADER) - sizeof(BITMAPINFOHEADER) - sizeof(RGBQUAD) * 256
+        : hFile.GetLength() - sizeof(BITMAPFILEHEADER) - sizeof(BITMAPINFOHEADER);
 }
 
 bool CBitmapIO::WriteImageData(CFile& file, const CUserBitmap& bmpNode, RGBQUAD* palRGB)
